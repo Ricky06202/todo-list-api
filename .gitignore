@@ -1,0 +1,61 @@
+# Dependencias
+/node_modules
+/.pnp
+.pnp.js
+
+# Variables de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Entornos de desarrollo
+.DS_Store
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Archivos de sistema
+Thumbs.db
+
+# Archivos de cobertura
+coverage/
+
+# Archivos de entorno de Node
+.npm
+.eslintcache
+
+# Archivos de configuración local
+*.local
+
+# Archivos de depuración
+*.log
+
+# Archivos de dependencias temporales
+.tmp
+
+# Archivos de entorno de producción
+build/
+dist/
+
+# Archivos de configuración de IDEs y editores
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+# Node modules
+node_modules/
+
+.env
