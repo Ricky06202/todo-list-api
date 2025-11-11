@@ -1,0 +1,50 @@
+name: Deploy Express/Node.js Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  web-deploy:
+    name: Deploy Express App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get latest code
+        uses: actions/checkout@v4
+
+      # --- PASOS DE INSTALACIÓN Y PREPARACIÓN ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Instala las dependencias. Esto es necesario para que la Action pueda leer package.json
+      # y para tener node_modules listo si tu host lo requiere.
+      - name: Install dependencies
+        run: npm install
+
+      # --- PASO DE DESPLIEGUE (Sube todo el contenido del repositorio) ---
+      - name: Sync files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # CAMBIO CLAVE: Usa ./ para subir todo el contenido del repositorio.
+          local-dir: ./
+          # Opcional: Excluye archivos y carpetas que no necesitas en producción.
+          # Si tienes muchos archivos en node_modules y tu host te permite correr 'npm install'
+          # directamente por SSH/terminal, deberías descomentar la siguiente línea para evitar
+          # una subida muy lenta:
+          # exclude: |
+          #   node_modules/**
+          #   .git/**
+          #   .github/**
+          #   .vscode/**
+          #   .gitignore
+          #   README.md
+
+          # RUTA REMOTA: Asegúrate de que esta sea la ruta donde quieres que se ejecute la aplicación
+          server-dir: /todolistapi.rsanjur.com/
