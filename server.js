@@ -11,19 +11,19 @@ const app = express();
 // Usa la variable de entorno PORT, o 3001 si no está definida
 const PORT = process.env.PORT || 3001;
 
-// Configuración de la conexión a MySQL
-const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'tu_usuario',
-    password: process.env.DB_PASSWORD || 'tu_contraseña',
-    database: process.env.DB_NAME || 'nombre_de_tu_base_de_datos',
+// Configuración de la conexión a MySQL usando DATABASE_URL
+const dbConfig = process.env.DATABASE_URL || {
+    host: 'localhost',
+    user: 'tu_usuario',
+    password: 'tu_contraseña',
+    database: 'nombre_de_tu_base_de_datos',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 };
 
 // Crear el pool de conexiones
-const pool = mysql.createPool(dbConfig);
+const pool = mysql.createPool(process.env.DATABASE_URL || dbConfig);
 
 // Función para ejecutar consultas SQL
 const query = async (sql, params) => {
