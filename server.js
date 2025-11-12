@@ -40,7 +40,7 @@ const query = async (sql, params) => {
 // Habilita CORS para permitir solicitudes desde el frontend de Astro
 app.use(cors({
     // NOTA: Configura esto con el puerto de desarrollo de Astro (típicamente 4321)
-    origin: 'http://todolist.rsanjur.com:4321'
+    origin: 'https://todolist.rsanjur.com:4321'
 }));
 
 // Permite a Express leer JSON en el cuerpo de las peticiones (POST, PUT)
