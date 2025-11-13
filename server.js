@@ -11,36 +11,75 @@ const app = express();
 // Usa la variable de entorno PORT, o 3001 si no está definida
 const PORT = process.env.PORT || 3001;
 
-// Configuración de la conexión a MySQL usando DATABASE_URL
-const dbConfig = process.env.DATABASE_URL || {
-    host: 'localhost',
-    user: 'tu_usuario',
-    password: 'tu_contraseña',
-    database: 'nombre_de_tu_base_de_datos',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-};
+// Configuración de la base de datos - Usar DATABASE_URL o configurar valores por defecto
+const DATABASE_URL = process.env.DATABASE_URL || 'mysql://root:@localhost:3306/todo_list';
 
-// Crear el pool de conexiones
-const pool = mysql.createPool(process.env.DATABASE_URL || dbConfig);
+// Mostrar configuración (sin contraseña por seguridad)
+const dbUrl = new URL(DATABASE_URL);
+console.log('🔌 Configuración de base de datos:', {
+    host: dbUrl.hostname,
+    database: dbUrl.pathname.replace(/^\//, ''),
+    user: dbUrl.username,
+    port: dbUrl.port || 3306
+});
 
-// Función para ejecutar consultas SQL
-const query = async (sql, params) => {
-    const connection = await pool.getConnection();
+// Crear el pool de conexiones con manejo de errores
+let pool;
+try {
+    pool = mysql.createPool(DATABASE_URL);
+    console.log('✅ Pool de conexión a MySQL creado exitosamente');
+} catch (error) {
+    console.error('❌ Error al crear el pool de conexión:', error);
+    process.exit(1);
+}
+
+// Función para ejecutar consultas SQL con mejor manejo de errores
+const query = async (sql, params = []) => {
+    let connection;
     try {
+        connection = await pool.getConnection();
+        console.log('🔍 Ejecutando consulta:', { sql, params });
         const [results] = await connection.query(sql, params);
         return results;
+    } catch (error) {
+        console.error('❌ Error en la consulta SQL:', {
+            sql,
+            params,
+            error: error.message,
+            code: error.code,
+            sqlState: error.sqlState,
+            sqlMessage: error.sqlMessage
+        });
+        throw error; // Re-lanzar el error para manejarlo en las rutas
     } finally {
-        connection.release();
+        if (connection) {
+            try {
+                await connection.release();
+            } catch (releaseError) {
+                console.error('Error al liberar la conexión:', releaseError);
+            }
+        }
     }
-}; 
+};
 
 // 3. Middlewares (Capa Intermedia)
 // Habilita CORS para permitir solicitudes desde el frontend de Astro
+// Configuración de CORS para permitir tanto producción como desarrollo local
+const allowedOrigins = ['https://todolist.rsanjur.com', 'http://localhost:4321'];
+
 app.use(cors({
-    // NOTA: Configura esto con el puerto de desarrollo de Astro (típicamente 4321)
-    origin: 'https://todolist.rsanjur.com'
+    origin: function(origin, callback) {
+        // Permitir solicitudes sin 'origin' (como aplicaciones móviles o curl)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'El origen de CORS no está permitido';
+            console.warn(msg, origin);
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true
 }));
 
 // Permite a Express leer JSON en el cuerpo de las peticiones (POST, PUT)
@@ -66,7 +105,28 @@ const initializeDatabase = async () => {
 };
 
 // Inicializar la base de datos
-initializeDatabase();
+let isDatabaseInitialized = false;
+
+const startServer = async () => {
+    try {
+        // Esperar a que la base de datos esté lista
+        await initializeDatabase();
+        isDatabaseInitialized = true;
+        
+        // Iniciar el servidor
+        app.listen(PORT, () => {
+            console.log(`🚀 Servidor Express ejecutándose en http://localhost:${PORT}`);
+            console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`📊 Base de datos: ${dbConfig.host}/${dbConfig.database}`);
+        });
+    } catch (error) {
+        console.error('❌ No se pudo iniciar el servidor:', error);
+        process.exit(1);
+    }
+};
+
+// Iniciar el servidor
+startServer();
 
 // 4. Definición de Rutas
 app.get('/', (req, res) => {
@@ -182,7 +242,22 @@ app.delete('/api/todos/:id', async (req, res) => {
     }
 });
 
-// 5. Arrancar el servidor
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor Express ejecutándose en http://localhost:${PORT}`);
+// Middleware para verificar que la base de datos está lista
+app.use((req, res, next) => {
+    if (!isDatabaseInitialized) {
+        return res.status(503).json({
+            status: 'error',
+            message: 'Servicio no disponible. La base de datos no está lista.'
+        });
+    }
+    next();
+});
+
+// Ruta de verificación de estado
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        database: isDatabaseInitialized ? 'connected' : 'disconnected',
+        timestamp: new Date().toISOString()
+    });
 });
